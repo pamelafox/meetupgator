@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+ <head>
+  <title>MeetupGator</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+  <style>
+.btn.btn-table {
+  padding: 1px 5px 1px;
+  font-size: 7px;
+  margin-right: -3px;
+  margin-top: -3px;
+ }
+  </style>
+ </head>
+ <body>
+
+ <div class="container">
+   <h1 class="page-header">MeetupGator</h1>
+   <p>See upcoming events from multiple meetup groups, all on one page. Bookmark for easy access.
+For example, check out the <a href="/#groups=sf-html5,jsmeetup,beerjs,BayNode">SF JS meetups</a> 
+or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitcbus,Girl-Develop-It-Austin,Girl-Develop-It-Philadelphia,Girl-Develop-It-Ottawa,girldevelopit-sydney">GirlDevelopIt chapters</a>.
+   </p>
+
+    <p>To add a group, enter its meetup URL or URL name: <br>
+    <div class="form-inline">
+    <input type="text" id="group-id"> <button id="add-group" class="btn btn-small" type="button">Add</button>
+    </div>
+    </p>
+    
+    <table class="table" id="groups-table" style="display:none; width:400px;">
+     <thead>
+      <tr><th>Group  <th>Upcoming Events <th>
+     </thead>
+     <tbody></tbody>
+    </table>
+
+
+   <table class="table" id="events-table" style="display:none;">
+    <thead>
+     <tr><th>Date/Time   <th>Event   <th>Group
+    </thead>
+    <tbody></tbody>
+   </table>
+ </div>
+
+ <script src="/js/moment.min.js"></script>
+ <script src="/js/jquery.min.js"></script>
+<script type="text/javascript">
+var MG = {};
+MG.events = [];
+MG.groups = [];
+
+function getHashParam(name) {
+  var regexS = name + "=([^&#]*)";
+  var regex = new RegExp(regexS);
+  var splitUrl = unescape(window.location.href).split('#');
+  var hash  = ((splitUrl.length > 1) && splitUrl[1]) || '';
+  var results = regex.exec(hash);
+  if( results === null )
+    return null;
+  else
+    return results[1];
+}
+
+function changeHashParam(name, value) {
+  var regexS = name  + "=([^&#]*)";
+  var regex = new RegExp(regexS);
+  var hash  = window.location.hash;
+  var results = regex.exec(hash);
+  if (getHashParam(name)) {
+    window.location.hash = window.location.hash.replace(regex, name + '=' + value);
+  } else {
+    if (window.location.hash.indexOf('=') > -1) {
+      window.location.hash += '&';
+    }
+    window.location.hash += name + '=' + value;
+  }
+}
+
+function getGroupsFromHash() {
+  var groupsHash = getHashParam('groups');
+  if (groupsHash) return groupsHash.split(',');
+  return [];
+}
+
+function addGroupToHash(groupId) {
+  var groups = getGroupsFromHash();
+  groups.push(groupId);
+  changeHashParam('groups', groups.join(','));
+}
+
+function removeGroupFromHash(groupId) {
+  var groups = getGroupsFromHash();
+  var idx = groups.indexOf(groupId);
+  if (idx != -1) {
+    groups.splice(idx, 1);
+    changeHashParam('groups', groups.join(','));
+  }
+}
+
+
+function renderEvents() {
+  $('#events-table tbody').empty();
+
+  // Sort events by time
+  MG.events.sort(function(a, b) {
+    return a.time > b.time;
+  });
+
+  // Add to table
+  $.each(MG.events, function(index, event) {
+    var dateTime = moment(event.time).format('dddd, MMMM Do YYYY, h:mm:ss a');
+    var eventStr = '<a href="' + event.event_url + '">' + event.name + '</a>';
+    var groupId  = event.group.urlname;
+    var groupStr = '<a href="http://meetup.com/' + groupId + '">' + groupId + '</a>';
+    // add to calendar
+    var $eventRow = $('<tr><td>' + dateTime + '<td>' + eventStr + '<td>' + groupStr);
+    $eventRow.addClass('group-' + groupId);
+    $('#events-table tbody').append($eventRow);
+  });
+
+  // Only show table if there are enough events
+  if (MG.events.length > 0) {
+    $('#events-table').show();
+  }
+
+}
+
+function renderGroups() {
+  $('#groups-table tbody').empty();
+
+  // Sort alphabetically
+  MG.groups.sort(function(a, b) {
+    return a.id > b.id;
+  });
+  $.each(MG.groups, function(index, group) {
+    var groupStr = '<a href="http://meetup.com/' + group.id + '">' + group.id + '</a>';
+    var $groupRow = $('<tr>').addClass('group-' + group.id);
+    $groupRow.append('<td>' + groupStr);
+    var badgeClass = (group.num > 0) ? 'badge badge-success' : 'badge';
+    $groupRow.append('<td><span class="' + badgeClass + '">' + group.num + '</span>');
+    var $removeButton = $('<td><button class="btn btn-table remove-group">X</button>');
+    $removeButton.on('click', function() {
+      var groupIndex = MG.groups.indexOf(groupId);
+      if (groupIndex != -1) {
+        MG.groups.splice(groupIndex, 1);
+      }
+      $.each(MG.events, function(eventIndex, event) {
+        if (event.group.urlname == groupId) {
+          MG.events.splice(eventIndex, 1);
+        }
+      });
+      removeGroupFromHash(groupId);
+      renderGroups();
+      renderEvents();
+    });
+    $groupRow.append($removeButton);
+    $('#groups-table tbody').append($groupRow);
+  });
+
+  if (MG.groups.length > 0) {
+    $('#groups-table').show();
+  }
+}
+
+function getGroupEvents(groupId) {
+  var meetupParams = {'key': '551f79233a251a351215671b7a60',
+                      'group_urlname': groupId};
+  var meetupUrl = 'https://api.meetup.com/2/events.json?' + $.param(meetupParams);
+
+  var proxyUrl = '/proxy?url=' + escape(meetupUrl);
+  $.getJSON(proxyUrl, function(data){
+    if(data){
+      $.each(data.results, function(index, result) {
+        MG.events.push(result);
+      });
+      MG.groups.push({id: groupId, num: data.results.length});
+      renderGroups();
+      renderEvents();
+    }
+  });
+}
+
+function refreshGroups() {
+  MG.groups = [];
+  MG.events = [];
+  $('#events-table tbody').empty();
+  $('#groups-table tbody').empty();
+  console.log('emptied');
+  var groups = getGroupsFromHash();
+  $.each(groups, function(index, groupId) {
+    getGroupEvents(groupId);
+  });
+}
+
+$(document).ready(function(){
+
+  $('#add-group').on('click', function(event) {
+    event.preventDefault();
+    var groupId = $('#group-id').val();
+    if (groupId.indexOf('meetup.com') > -1) {
+      var regEx = /meetup.com\/([^/]*)/g;
+      groupId = regEx.exec(groupId)[1];
+    }
+    addGroupToHash(groupId);
+    getGroupEvents(groupId);
+  });
+
+  $(window).on('hashchange', function() {
+    refreshGroups();
+  });
+  refreshGroups();
+
+});
+
+</script>
+</body>
+</html>
