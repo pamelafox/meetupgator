@@ -14,11 +14,12 @@
   </style>
  </head>
  <body>
+  <a href="https://github.com/pamelafox/meetupgator"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
 
  <div class="container">
    <h1 class="page-header">MeetupGator</h1>
    <p>See upcoming events from multiple meetup groups, all on one page. Bookmark for easy access.
-For example, check out the <a href="/#groups=sf-html5,jsmeetup,beerjs,BayNode">SF JS meetups</a> 
+For example, check out the <a href="/#groups=sf-html5,jsmeetup,beerjs,BayNode">SF JS meetups</a>, the <a href="/#groups=Women-Who-Code-SF,Girl-Develop-It-San-Francisco,PyLadiesSF">SF Women in Tech meetups</a>
 or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitcbus,Girl-Develop-It-Austin,Girl-Develop-It-Philadelphia,Girl-Develop-It-Ottawa,girldevelopit-sydney">GirlDevelopIt chapters</a>.
    </p>
 
@@ -27,7 +28,7 @@ or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitc
     <input type="text" id="group-id"> <button id="add-group" class="btn btn-small" type="button">Add</button>
     </div>
     </p>
-    
+
     <table class="table" id="groups-table" style="display:none; width:400px;">
      <thead>
       <tr><th>Group  <th>Upcoming Events <th>
@@ -48,8 +49,9 @@ or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitc
  <script src="/js/jquery.min.js"></script>
 <script type="text/javascript">
 var MG = {};
-MG.events = [];
 MG.groups = [];
+MG.groupedEvents = {};
+
 
 function getHashParam(name) {
   var regexS = name + "=([^&#]*)";
@@ -103,13 +105,19 @@ function removeGroupFromHash(groupId) {
 function renderEvents() {
   $('#events-table tbody').empty();
 
+  var allEvents = [];
+  $.each(MG.groupedEvents, function(groupId, events) {
+    allEvents = allEvents.concat(MG.groupedEvents[groupId]);
+  });
+
   // Sort events by time
-  MG.events.sort(function(a, b) {
+  allEvents.sort(function(a, b) {
     return a.time > b.time;
   });
 
   // Add to table
-  $.each(MG.events, function(index, event) {
+  $.each(allEvents, function(index, event) {
+    
     var dateTime = moment(event.time).format('dddd, MMMM Do YYYY, h:mm:ss a');
     var eventStr = '<a href="' + event.event_url + '">' + event.name + '</a>';
     var groupId  = event.group.urlname;
@@ -121,7 +129,7 @@ function renderEvents() {
   });
 
   // Only show table if there are enough events
-  if (MG.events.length > 0) {
+  if (allEvents.length > 0) {
     $('#events-table').show();
   }
 
@@ -130,27 +138,23 @@ function renderEvents() {
 function renderGroups() {
   $('#groups-table tbody').empty();
 
-  // Sort alphabetically
-  MG.groups.sort(function(a, b) {
-    return a.id > b.id;
+  var allGroups = [];
+  $.each(MG.groupedEvents, function(groupId, events) {
+    allGroups.push(groupId);
   });
-  $.each(MG.groups, function(index, group) {
-    var groupStr = '<a href="http://meetup.com/' + group.id + '">' + group.id + '</a>';
-    var $groupRow = $('<tr>').addClass('group-' + group.id);
+
+  // Sort alphabetically
+  allGroups.sort();
+
+  $.each(allGroups, function(index, groupId) {
+    var groupStr = '<a href="http://meetup.com/' + groupId + '">' + groupId + '</a>';
+    var $groupRow = $('<tr>').addClass('group-' + groupId);
     $groupRow.append('<td>' + groupStr);
-    var badgeClass = (group.num > 0) ? 'badge badge-success' : 'badge';
-    $groupRow.append('<td><span class="' + badgeClass + '">' + group.num + '</span>');
+    var badgeClass = (MG.groupedEvents[groupId].length > 0) ? 'badge badge-success' : 'badge';
+    $groupRow.append('<td><span class="' + badgeClass + '">' + MG.groupedEvents[groupId].length + '</span>');
     var $removeButton = $('<td><button class="btn btn-table remove-group">X</button>');
     $removeButton.on('click', function() {
-      var groupIndex = MG.groups.indexOf(groupId);
-      if (groupIndex != -1) {
-        MG.groups.splice(groupIndex, 1);
-      }
-      $.each(MG.events, function(eventIndex, event) {
-        if (event.group.urlname == groupId) {
-          MG.events.splice(eventIndex, 1);
-        }
-      });
+      delete MG.groupedEvents[groupId];
       removeGroupFromHash(groupId);
       renderGroups();
       renderEvents();
@@ -159,7 +163,7 @@ function renderGroups() {
     $('#groups-table tbody').append($groupRow);
   });
 
-  if (MG.groups.length > 0) {
+  if (allGroups.length > 0) {
     $('#groups-table').show();
   }
 }
@@ -172,10 +176,7 @@ function getGroupEvents(groupId) {
   var proxyUrl = '/proxy?url=' + escape(meetupUrl);
   $.getJSON(proxyUrl, function(data){
     if(data){
-      $.each(data.results, function(index, result) {
-        MG.events.push(result);
-      });
-      MG.groups.push({id: groupId, num: data.results.length});
+      MG.groupedEvents[groupId] = data.results;
       renderGroups();
       renderEvents();
     }
@@ -183,14 +184,19 @@ function getGroupEvents(groupId) {
 }
 
 function refreshGroups() {
-  MG.groups = [];
-  MG.events = [];
-  $('#events-table tbody').empty();
-  $('#groups-table tbody').empty();
-  console.log('emptied');
+  // For anything in hash we dont have events for, fetch them
   var groups = getGroupsFromHash();
   $.each(groups, function(index, groupId) {
-    getGroupEvents(groupId);
+    if (!(groupId in MG.groupedEvents)) {
+      getGroupEvents(groupId);
+    }
+  });
+
+  // If there are groups in our data that arent in hash, delete
+  $.each(MG.groupedEvents, function(groupId, events) {
+    if ($.inArray(groupId, groups) == -1) {
+      delete MG.groupedEvents[groupId];
+    }
   });
 }
 
@@ -203,8 +209,10 @@ $(document).ready(function(){
       var regEx = /meetup.com\/([^/]*)/g;
       groupId = regEx.exec(groupId)[1];
     }
-    addGroupToHash(groupId);
-    getGroupEvents(groupId);
+    if (!MG.groupedEvents[groupId]) {
+      addGroupToHash(groupId);
+      getGroupEvents(groupId);
+    }
   });
 
   $(window).on('hashchange', function() {
