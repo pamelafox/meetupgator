@@ -46,17 +46,18 @@ or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitc
        <tbody></tbody>
       </table>
 
-      <p>To also show your Google calendar, specify <a href="http://support.google.com/calendar/bin/answer.py?hl=en&answer=37648">the private URL</a>:</p>
-      <div class="form-inline">
-      <input type="text" id="calendar-feed">  <button id="add-calendar" class="btn btn-small" type="button">Add</button>
-      </div>
-      <table id="calendars-table" class="table" style="margin-top: 6px;">
-       <tbody></tbody>
-      </table>
-
       <br>
 
+      <p>To add your Google calendar, enter <a href="http://support.google.com/calendar/bin/answer.py?hl=en&answer=37648">its URL</a>:</p>
+      <div class="form-inline">
+      <input type="text" id="calendar-url">  <button id="add-calendar" class="btn btn-small" type="button">Add</button>
+      </div>
+      <table id="calendars-table" class="table" style="margin-top: 10px;">
+       <tbody></tbody>
+      </table>
+      <div>
       <input id="calendar-holidays" type="checkbox" checked="checked"> Show/hide US holidays
+      </div>
 
     </div>
 
@@ -90,7 +91,6 @@ or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitc
 var MG = {};
 MG.groups = [];
 MG.groupedEvents = {};
-
 
 function getHashParam(name) {
   var regexS = name + "=([^&#]*)";
@@ -292,15 +292,18 @@ $(document).ready(function(){
   $('#calendar-holidays').click(toggleHolidays);
   toggleHolidays();
 
-  function showPrivate() {
-    var privateCalendar = {url: $('#calendar-feed').val()};
-    $('#events-calendar').fullCalendar('addEventSource', privateCalendar);
-
+  function addCalendar(calendarUrl) {
     var regEx = /feeds\/([^/]*)/g;
-    var feedUsername = regEx.exec(privateCalendar.url)[1];
-
+    var calendarMatches = regEx.exec(calendarUrl);
+    if (!calendarMatches) {
+      alert('Dont think that a valid Google calendar feed, sorry!');
+      return;
+    }
+    calendarUsername = unescape(calendarMatches[1]);
+    var privateCalendar = {url: calendarUrl};
+    $('#events-calendar').fullCalendar('addEventSource', privateCalendar);
     var $calendarRow = $('<tr></tr>');
-    $calendarRow.append('<td>' + feedUsername + '</td>');
+    $calendarRow.append('<td><a target="_blank" href="' + calendarUrl + '">' + calendarUsername + '</a></td>');
     var $removeButton = $('<td><button class="btn btn-table remove-group">X</button>');
     $removeButton.on('click', function() {
       $calendarRow.remove();
@@ -309,7 +312,10 @@ $(document).ready(function(){
     $calendarRow.append($removeButton);
     $('#calendars-table').append($calendarRow);
   }
-  $('#add-calendar').click(showPrivate);
+
+  $('#add-calendar').click(function() {
+    addCalendar($('#calendar-url').val());
+  });
 
   changeView('calendar');
   $('#events-calendar').fullCalendar('refetchEvents');
@@ -317,6 +323,22 @@ $(document).ready(function(){
   $(window).on('hashchange', function() {
     refreshGroups();
   });
+
+  $(window).on('unload', function() {
+    // iterate through calendars, get URLs from As, save
+    var calendars = [];
+    $('#calendars-table td a').each(function() {
+      var calendarUrl = $(this).attr('href');
+      calendars.push(calendarUrl);
+    });
+    lscache.set('calendars', calendars);
+  });
+
+  var calendars = lscache.get('calendars');
+  $.each(calendars || [], function(index, calendarUrl) {
+    addCalendar(calendarUrl);
+  });
+
   refreshGroups();
 });
 
