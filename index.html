@@ -45,6 +45,19 @@ or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitc
        </thead>
        <tbody></tbody>
       </table>
+
+      <p>To also show your Google calendar, specify <a href="http://support.google.com/calendar/bin/answer.py?hl=en&answer=37648">the private URL</a>:</p>
+      <div class="form-inline">
+      <input type="text" id="calendar-feed">  <button id="add-calendar" class="btn btn-small" type="button">Add</button>
+      </div>
+      <table id="calendars-table" class="table" style="margin-top: 6px;">
+       <tbody></tbody>
+      </table>
+
+      <br>
+
+      <input id="calendar-holidays" type="checkbox" checked="checked"> Show/hide US holidays
+
     </div>
 
     <div class="pull-right" style="width: 65%;">
@@ -71,6 +84,8 @@ or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitc
  <script src="/js/moment.min.js"></script>
  <script src="/js/jquery.min.js"></script>
  <script src='/js/fullcalendar.min.js'></script>
+ <script src='/js/gcal.js'></script>
+ <script src='/js/lscache.js'></script>
 <script type="text/javascript">
 var MG = {};
 MG.groups = [];
@@ -251,19 +266,53 @@ $(document).ready(function(){
         center: 'title',
         right: 'month,basicWeek,basicDay'
     },
-    events: function(start, end, callback) {
+    eventSources: [
+    function(start, end, callback) {
       var allEvents = [];
       $.each(MG.groupedEvents, function(groupId, events) {
         $.each(events, function(index, event) {
-          allEvents.push({title: event.name, start: new Date(event.time), url: event.event_url});
+          allEvents.push({title: event.name, start: new Date(event.time), url: event.event_url, color: '#C92525'});
         });
       });
       callback(allEvents);
     }
+    ]
   });
 
+  var holidaysCalendar = {url: 'http://www.google.com/calendar/feeds/usa__en%40holiday.calendar.google.com/public/basic',
+  color: '#bbb'};
+
+  function toggleHolidays() {
+    if ($('#calendar-holidays').attr('checked') == 'checked') {
+      $('#events-calendar').fullCalendar('addEventSource', holidaysCalendar);
+    } else {
+      $('#events-calendar').fullCalendar('removeEventSource', holidaysCalendar);
+    }
+  }
+  $('#calendar-holidays').click(toggleHolidays);
+  toggleHolidays();
+
+  function showPrivate() {
+    var privateCalendar = {url: $('#calendar-feed').val()};
+    $('#events-calendar').fullCalendar('addEventSource', privateCalendar);
+
+    var regEx = /feeds\/([^/]*)/g;
+    var feedUsername = regEx.exec(privateCalendar.url)[1];
+
+    var $calendarRow = $('<tr></tr>');
+    $calendarRow.append('<td>' + feedUsername + '</td>');
+    var $removeButton = $('<td><button class="btn btn-table remove-group">X</button>');
+    $removeButton.on('click', function() {
+      $calendarRow.remove();
+      $('#events-calendar').fullCalendar('removeEventSource', privateCalendar);
+    });
+    $calendarRow.append($removeButton);
+    $('#calendars-table').append($calendarRow);
+  }
+  $('#add-calendar').click(showPrivate);
+
   changeView('calendar');
-  $('#events-calendar').fullCalendar('refetchEvents')
+  $('#events-calendar').fullCalendar('refetchEvents');
 
   $(window).on('hashchange', function() {
     refreshGroups();
