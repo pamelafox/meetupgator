@@ -64,7 +64,7 @@ or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitc
     <div class="pull-right" style="width: 65%;">
 
       <ul class="nav nav-pills pull-left">
-        <li id="events-calendar-link" class="events-link"><a href="javascript:changeView('calendar')">Calendar View</a>
+        <li id="events-calendar-link" class="events-link active"><a href="javascript:changeView('calendar')">Calendar View</a>
         <li id="events-list-link" class="events-link"><a href="javascript:changeView('list')">List View</a>
       </ul>
 
@@ -279,10 +279,9 @@ $(document).ready(function(){
     ]
   });
 
-  var holidaysCalendar = {url: 'http://www.google.com/calendar/feeds/usa__en%40holiday.calendar.google.com/public/basic',
-  color: '#bbb'};
-
   function toggleHolidays() {
+    var holidaysCalendar = {url: 'http://www.google.com/calendar/feeds/usa__en%40holiday.calendar.google.com/public/basic',
+  color: '#bbb'};
     if ($('#calendar-holidays').attr('checked') == 'checked') {
       $('#events-calendar').fullCalendar('addEventSource', holidaysCalendar);
     } else {
@@ -290,7 +289,6 @@ $(document).ready(function(){
     }
   }
   $('#calendar-holidays').click(toggleHolidays);
-  toggleHolidays();
 
   function addCalendar(calendarUrl) {
     var regEx = /feeds\/([^/]*)/g;
@@ -317,29 +315,53 @@ $(document).ready(function(){
     addCalendar($('#calendar-url').val());
   });
 
-  changeView('calendar');
-  $('#events-calendar').fullCalendar('refetchEvents');
-
   $(window).on('hashchange', function() {
     refreshGroups();
   });
 
   $(window).on('unload', function() {
-    // iterate through calendars, get URLs from As, save
+    lscache.set('holidays', $('#calendar-holidays').attr('checked'));
+
     var calendars = [];
     $('#calendars-table td a').each(function() {
       var calendarUrl = $(this).attr('href');
       calendars.push(calendarUrl);
     });
     lscache.set('calendars', calendars);
+
+    var groups = getGroupsFromHash();
+    lscache.set('groups', groups);
   });
 
+  // Check localStorage for holiday setting, check it if its there.
+  var holidays = lscache.get('holidays');
+  if (holidays) {
+    if (holidays == 'checked') {
+      $('#calendar-holidays').attr('checked', 'checked');
+    } else {
+      $('#calendar-holidays').removeAttr('checked');
+    }
+  }
+  toggleHolidays();
+
+  // If there are calendars in localStorage, use them.
   var calendars = lscache.get('calendars');
   $.each(calendars || [], function(index, calendarUrl) {
     addCalendar(calendarUrl);
   });
 
-  refreshGroups();
+  // If there's nothing after the hash, we use groups from localStorage if there are any. 
+  // If there is anything in the hash, we refresh the groups.
+  if (window.location.hash.length < 2) {
+    var groups = lscache.get('groups');
+    if (groups) {
+      changeHashParam('groups', groups.join(','));
+    }
+  } else {
+    refreshGroups();
+  }
+
+  $('#events-calendar').fullCalendar('refetchEvents');
 });
 
 </script>
