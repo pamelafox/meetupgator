@@ -3,7 +3,8 @@
  <head>
   <title>MeetupGator</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+  <link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css">
+  <link rel='stylesheet' type='text/css' href='/css/fullcalendar.css' />
   <style>
 .btn.btn-table {
   padding: 1px 5px 1px;
@@ -16,37 +17,47 @@
  <body>
   <a href="https://github.com/pamelafox/meetupgator"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
 
- <div class="container">
-   <h1 class="page-header">MeetupGator</h1>
+ <div class="container" style="margin-top:20px;">
+     <div class="well pull-right" style="width: 40%;">
+      <p>To add a group, enter its meetup URL or URL name: <br>
+      <div class="form-inline">
+      <input type="text" id="group-id"> <button id="add-group" class="btn btn-small" type="button">Add</button>
+      </div>
+      </p>
+
+      <table class="table" id="groups-table" style="display:none;">
+       <thead>
+        <tr><th>Group  <th>Upcoming Events <th>
+       </thead>
+       <tbody></tbody>
+      </table>
+    </div>
+
+  <div>
+   <strong style="font-size:24px;">MeetupGator</strong> <br><br>
    <p>See upcoming events from multiple meetup groups, all on one page. Bookmark for easy access.
 For example, check out the <a href="/#groups=sf-html5,jsmeetup,beerjs,BayNode">SF JS meetups</a>, the <a href="/#groups=Women-Who-Code-SF,Girl-Develop-It-San-Francisco,PyLadiesSF">SF Women in Tech meetups</a>
 or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitcbus,Girl-Develop-It-Austin,Girl-Develop-It-Philadelphia,Girl-Develop-It-Ottawa,girldevelopit-sydney">GirlDevelopIt chapters</a>.
    </p>
+  </div>
 
-    <p>To add a group, enter its meetup URL or URL name: <br>
-    <div class="form-inline">
-    <input type="text" id="group-id"> <button id="add-group" class="btn btn-small" type="button">Add</button>
-    </div>
-    </p>
+     
 
-    <table class="table" id="groups-table" style="display:none; width:400px;">
+
+    <div id="events-calendar"></div>
+
+    <table class="table" id="events-table" style="display:none;">
      <thead>
-      <tr><th>Group  <th>Upcoming Events <th>
+      <tr><th>Date/Time   <th>Event   <th>Group
      </thead>
      <tbody></tbody>
     </table>
 
-
-   <table class="table" id="events-table" style="display:none;">
-    <thead>
-     <tr><th>Date/Time   <th>Event   <th>Group
-    </thead>
-    <tbody></tbody>
-   </table>
  </div>
 
  <script src="/js/moment.min.js"></script>
  <script src="/js/jquery.min.js"></script>
+ <script src='/js/fullcalendar.min.js'></script>
 <script type="text/javascript">
 var MG = {};
 MG.groups = [];
@@ -133,6 +144,7 @@ function renderEvents() {
     $('#events-table').show();
   }
 
+  $('#events-calendar').fullCalendar('refetchEvents')
 }
 
 function renderGroups() {
@@ -215,11 +227,29 @@ $(document).ready(function(){
     }
   });
 
+  $('#events-calendar').fullCalendar({
+    editable: false,
+    aspectRatio: 2,
+    header: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'month,basicWeek,basicDay'
+    },
+    events: function(start, end, callback) {
+      var allEvents = [];
+      $.each(MG.groupedEvents, function(groupId, events) {
+        $.each(events, function(index, event) {
+          allEvents.push({title: event.name, start: new Date(event.time), url: event.event_url});
+        });
+      });
+      callback(allEvents);
+    }
+  });
+
   $(window).on('hashchange', function() {
     refreshGroups();
   });
   refreshGroups();
-
 });
 
 </script>
