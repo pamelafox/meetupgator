@@ -18,7 +18,19 @@
   <a href="https://github.com/pamelafox/meetupgator"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
 
  <div class="container" style="margin-top:20px;">
-     <div class="well pull-right" style="width: 40%;">
+
+  <div>
+   <strong style="font-size:24px;">MeetupGator</strong> <br><br>
+   <p>See upcoming events from multiple meetup groups, all on one page. Bookmark for easy access.
+For example, check out the <a href="/#groups=sf-html5,jsmeetup,beerjs,BayNode">SF JS meetups</a>, the <a href="/#groups=Women-Who-Code-SF,Girl-Develop-It-San-Francisco,PyLadiesSF">SF Women in Tech meetups</a>
+or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitcbus,Girl-Develop-It-Austin,Girl-Develop-It-Philadelphia,Girl-Develop-It-Ottawa,girldevelopit-sydney">GirlDevelopIt chapters</a>.
+   </p>
+  </div>
+
+     
+
+  <div style="width: 100%;">
+    <div class="well pull-left" style="width: 30%;">
       <p>To add a group, enter its meetup URL or URL name: <br>
       <div class="form-inline">
       <input type="text" id="group-id"> <button id="add-group" class="btn btn-small" type="button">Add</button>
@@ -33,25 +45,24 @@
       </table>
     </div>
 
-  <div>
-   <strong style="font-size:24px;">MeetupGator</strong> <br><br>
-   <p>See upcoming events from multiple meetup groups, all on one page. Bookmark for easy access.
-For example, check out the <a href="/#groups=sf-html5,jsmeetup,beerjs,BayNode">SF JS meetups</a>, the <a href="/#groups=Women-Who-Code-SF,Girl-Develop-It-San-Francisco,PyLadiesSF">SF Women in Tech meetups</a>
-or the <a href="/#groups=girldevelopit,Girl-Develop-It-Cincinnati,girldevelopitcbus,Girl-Develop-It-Austin,Girl-Develop-It-Philadelphia,Girl-Develop-It-Ottawa,girldevelopit-sydney">GirlDevelopIt chapters</a>.
-   </p>
+    <div class="pull-right" style="width: 65%;">
+
+      <ul class="nav nav-pills pull-right">
+        <li id="events-calendar-link" class="events-link"><a href="javascript:changeView('calendar')">Calendar View</a>
+        <li id="events-list-link" class="events-link"><a href="javascript:changeView('list')">List View</a>
+      </ul>
+
+      <div id="events-calendar" class="events-view" style=""></div>
+
+      <table id="events-list" class="table events-view"  style="display:none;">
+       <thead>
+        <tr><th>Date/Time   <th>Event   <th>Group
+       </thead>
+       <tbody></tbody>
+      </table>
+    </div>
   </div>
 
-     
-
-
-    <div id="events-calendar"></div>
-
-    <table class="table" id="events-table" style="display:none;">
-     <thead>
-      <tr><th>Date/Time   <th>Event   <th>Group
-     </thead>
-     <tbody></tbody>
-    </table>
 
  </div>
 
@@ -91,6 +102,14 @@ function changeHashParam(name, value) {
   }
 }
 
+function changeView(viewId) {
+  $('.events-view').hide();
+  $('#events-' + viewId).show();
+
+  $('.events-link').removeClass('active');
+  $('#events-' + viewId + '-link').addClass('active');
+}
+
 function getGroupsFromHash() {
   var groupsHash = getHashParam('groups');
   if (groupsHash) return groupsHash.split(',');
@@ -114,7 +133,7 @@ function removeGroupFromHash(groupId) {
 
 
 function renderEvents() {
-  $('#events-table tbody').empty();
+  $('#events-list tbody').empty();
 
   var allEvents = [];
   $.each(MG.groupedEvents, function(groupId, events) {
@@ -136,15 +155,10 @@ function renderEvents() {
     // add to calendar
     var $eventRow = $('<tr><td>' + dateTime + '<td>' + eventStr + '<td>' + groupStr);
     $eventRow.addClass('group-' + groupId);
-    $('#events-table tbody').append($eventRow);
+    $('#events-list tbody').append($eventRow);
   });
 
-  // Only show table if there are enough events
-  if (allEvents.length > 0) {
-    $('#events-table').show();
-  }
-
-  $('#events-calendar').fullCalendar('refetchEvents')
+  $('#events-calendar').fullCalendar('refetchEvents');
 }
 
 function renderGroups() {
@@ -231,7 +245,7 @@ $(document).ready(function(){
     editable: false,
     aspectRatio: 2,
     header: {
-        left: 'prev,next today',
+        left: 'prev,next',
         center: 'title',
         right: 'month,basicWeek,basicDay'
     },
@@ -245,6 +259,9 @@ $(document).ready(function(){
       callback(allEvents);
     }
   });
+
+  changeView('calendar');
+  $('#events-calendar').fullCalendar('refetchEvents')
 
   $(window).on('hashchange', function() {
     refreshGroups();
