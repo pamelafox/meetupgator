@@ -166,7 +166,7 @@ function renderEvents() {
 
   // Sort events by time
   allEvents.sort(function(a, b) {
-    return a.time > b.time;
+    return a.time - b.time;
   });
 
   // Add to table
