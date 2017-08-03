@@ -224,12 +224,14 @@ function renderGroups() {
 }
 
 function getGroupEvents(groupId) {
-  var meetupParams = {'key': '551f79233a251a351215671b7a60',
-                      'group_urlname': groupId};
-  var meetupUrl = 'https://api.meetup.com/2/events.json?' + $.param(meetupParams);
+  var meetupParams = {
+      'key': '551f79233a251a351215671b7a60',
+      'group_urlname': groupId
+  };
 
-  var proxyUrl = '/proxy?url=' + escape(meetupUrl);
-  $.getJSON(proxyUrl, function(data){
+  var requestUrl = 'https://api.meetup.com/2/events.json?' + $.param(meetupParams) + '&callback=?';
+
+  $.getJSON(requestUrl, function(data){
     if(data){
       MG.groupedEvents[groupId] = data.results;
       renderGroups();
